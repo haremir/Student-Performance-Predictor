@@ -1,21 +1,21 @@
 """
-Decision Tree Regressor modelini eğitmek için script
+Linear Regression modelini eğitmek için script
 """
 import os
 import sys
 import pickle
 import pandas as pd
 import numpy as np
-from sklearn.tree import DecisionTreeRegressor
+from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 
 # Ana dizini ekle
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from utils.helpers import save_model, evaluate_model
 
-def train_decision_tree_model(data_path, output_path, target='average_score', params=None):
+def train_linear_model(data_path, output_path, target='average_score'):
     """
-    Decision Tree modelini eğitir ve kaydeder
+    Linear Regression modelini eğitir ve kaydeder
     
     Parameters:
     -----------
@@ -25,8 +25,6 @@ def train_decision_tree_model(data_path, output_path, target='average_score', pa
         Eğitilmiş modelin kaydedileceği yol
     target : str
         Hedef değişken ('math_score', 'reading_score', 'writing_score', 'average_score')
-    params : dict
-        Model hiperparametreleri (None ise varsayılan değerler kullanılır)
     """
     # İşlenmiş veriyi yükle
     with open(data_path, 'rb') as f:
@@ -46,24 +44,15 @@ def train_decision_tree_model(data_path, output_path, target='average_score', pa
         y_train = data['y_avg_train']
         y_test = data['y_avg_test']
     
-    # Eğitim verisini al (Decision Tree için ölçeklendirmeye gerek yok)
-    X_train = data['X_train']
-    X_test = data['X_test']
+    # Eğitim verisini al (ölçeklendirilmiş veya normal)
+    X_train = data['X_train_scaled']
+    X_test = data['X_test_scaled']
     
-    print(f"Decision Tree modeli eğitiliyor (hedef: {target})...")
+    print(f"Linear Regression modeli eğitiliyor (hedef: {target})...")
     print(f"Eğitim veri boyutu: {X_train.shape}")
     
-    # Varsayılan parametreler
-    if params is None:
-        params = {
-            'max_depth': 5,
-            'min_samples_split': 2,
-            'min_samples_leaf': 1,
-            'random_state': 42
-        }
-    
     # Modeli oluştur ve eğit
-    model = DecisionTreeRegressor(**params)
+    model = LinearRegression()
     model.fit(X_train, y_train)
     
     # Model performansını değerlendir
@@ -81,11 +70,11 @@ def train_decision_tree_model(data_path, output_path, target='average_score', pa
     
     # Model bilgilerini ve performans metriklerini kaydet
     model_info = {
-        'model_type': 'DecisionTreeRegressor',
+        'model_type': 'LinearRegression',
         'target': target,
-        'params': params,
         'metrics': metrics,
-        'feature_importance': dict(zip(data['feature_cols'], model.feature_importances_))
+        'feature_importance': dict(zip(data['feature_cols'], model.coef_)),
+        'intercept': model.intercept_
     }
     
     info_path = output_path.replace('.pkl', '_info.pkl')
@@ -98,21 +87,11 @@ def train_decision_tree_model(data_path, output_path, target='average_score', pa
 
 if __name__ == "__main__":
     data_path = "data/processed/processed_data.pkl"
-    output_path = "models/decisiontree_model.pkl"
-    
-    # Yapılandırma dosyasını yükle (varsa)
-    try:
-        with open("configs/params.yaml", 'r') as f:
-            import yaml
-            config = yaml.safe_load(f)
-            dt_params = config.get('decision_tree', {})
-    except:
-        dt_params = None
-        print("Yapılandırma dosyası bulunamadı, varsayılan parametreler kullanılıyor.")
+    output_path = "models/linear_model.pkl"
     
     # Tüm hedef değişkenler için ayrı modeller eğit
     targets = ['math_score', 'reading_score', 'writing_score', 'average_score']
     
     for target in targets:
         model_path = output_path.replace('.pkl', f'_{target}.pkl')
-        train_decision_tree_model(data_path, model_path, target, dt_params)
+        train_linear_model(data_path, model_path, target)
